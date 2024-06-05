@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Todo from './Todo';
 import { TodoEntity } from './types';
 import { db } from './firebase';
@@ -9,6 +9,8 @@ import { InputText } from 'primereact/inputtext';
 import MyToolBar from './MyToolBar';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { DataView } from 'primereact/dataview';
+import { Toast } from 'primereact/toast';
+
 import 'primeicons/primeicons.css';
 import '/node_modules/primeflex/primeflex.css';
 import {
@@ -33,14 +35,22 @@ const style = {
 };
 
 function App() {
+  const toast = useRef<Toast>(null);
   const [todos, setTodos] = useState<TodoEntity[]>([]);
   const [input, setInput] = useState('');
+  const [searchText, setSearchText] = useState('');
+
+
+
+  const showWarn = () => {
+    toast.current?.show({ severity: 'warn', summary: 'Предупреждение', detail: 'Введите текст задачи!', life: 3000 });
+  }
 
   // Create todo
   const createTodo = async (e: { preventDefault: (arg0: unknown) => void; }) => {
     e.preventDefault(e);
     if (input === '') {
-      alert('Please enter a valid todo');
+      showWarn();
       return;
     }
     await addDoc(collection(db, 'todos'), {
@@ -77,27 +87,22 @@ function App() {
   };
 
 
-  const listTemplate = (items: TodoEntity[]) => {
-    if (!items || items.length === 0) return null;
-    const list = items.map((product, index) => {
-      return <Todo
-        key={index}
-        todo={product}
-        toggleComplete={toggleComplete}
-        deleteTodo={deleteTodo}
-      />;
-    });
 
-    return <div className="grid">{list}</div>;
+
+
+  const listTemplate = (item: TodoEntity) => {
+    return Todo({ todo: item, toggleComplete, deleteTodo })
   };
+
 
   return (
     <div className="col-12 md:col-10">
-      <MyToolBar />
+      <Toast ref={toast} />
+      <MyToolBar searchText={setSearchText} />
       <div className="card">
         <TabView>
           <TabPanel header="В ожидании">
-            <div className={style.container}>
+            <div>
               <form onSubmit={createTodo} className={style.form}>
                 <div className="p-inputgroup flex-1">
                   <InputText value={input}
@@ -105,33 +110,23 @@ function App() {
                   <Button icon="pi pi-plus" className="p-button-warning" />
                 </div>
               </form>
-
-              <DataView value={todos.filter((t) => !t.completed)} listTemplate={listTemplate} />
-              {/* <ul>
-                {todos.map((todo, index) => (
-                  <Todo
-                    key={index}
-                    todo={todo}
-                    toggleComplete={toggleComplete}
-                    deleteTodo={deleteTodo}
-                  />
-                ))}
-              </ul> */}
+              <DataView value={todos.filter((t) => !t.completed && t.text.includes(searchText))} emptyMessage='Нет не одной задачи!' itemTemplate={listTemplate} />
               {todos.length < 1 ? null : (
-                <p className={style.count}>{`У вас ${todos.filter((t) => !t.completed).length} не выполненных задач`}</p>
+                <p className={style.count}>{`У вас ${todos.filter((t) => !t.completed && t.text.includes(searchText)).length} не выполненных задач`}</p>
               )}
             </div>
-
           </TabPanel>
           <TabPanel header="Выполненно">
-            <DataView value={todos.filter((t) => t.completed)} listTemplate={listTemplate} />
-
+            <DataView value={todos.filter((t) => t.completed && t.text.includes(searchText))} emptyMessage='Нет не одной задачи!' itemTemplate={listTemplate} />
           </TabPanel>
-
         </TabView>
       </div>
-
-
+      <hr></hr>
+      <div className="page-footer">
+        <footer>
+          TeamDo  0.0.1 by Mirtashev D.
+        </footer>
+      </div>
     </div>
 
   )
